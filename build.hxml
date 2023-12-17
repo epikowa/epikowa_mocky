@@ -1,0 +1,8 @@
+-cp src
+-cp src_tests
+-main Main
+--interp
+-D js-es=6
+# --js bin/main.js
+--dce no
+--json bin/types.json
