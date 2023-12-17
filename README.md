@@ -9,6 +9,7 @@ As Haxe introduces new features, such as null safety, we need mocking libraries 
 
 ## How to use
 
+>   [!WARNING]  
 >   ⚠️ This library is in very very early stage and not ready at all to be used. This is likely to change.
 
 In order to create a mock:
@@ -30,6 +31,8 @@ var mock = Mocky.mock(MyClass);
 trace(mock.callStore);
 ```
 
+>   [!Note]  
 >   ℹ️ More tracking and convenience methods to interpret it will be added in the future.
 
+>   [!WARNING]  
 >   ⚠️ Mocking a function that uses class type parameters isn't currently implemented, making it practically useless for classes that use type parameters. This is obviously planned.
