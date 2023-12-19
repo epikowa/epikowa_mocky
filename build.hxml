@@ -3,6 +3,7 @@
 -main Main
 --interp
 -D js-es=6
+--xml docs/types.xml
 # --js bin/main.js
 --dce no
 --json bin/types.json

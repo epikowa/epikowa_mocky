@@ -1,5 +1,3 @@
-import Main.UserTo;
-
 class User {
     var plop:String;
 
@@ -10,10 +8,4 @@ class User {
     public function new() {
 
     }
-}
-
-class Bwa {
-    public function new() {}
-
-    public function shout() {}
 }

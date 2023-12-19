@@ -10,7 +10,13 @@ class House<S, T> {
         trace('Original call ${name}');
     }
 
-    public function sayYourName(name:String, thing:String) {
+    public function sayYourName(name:S, thing:String) {
         trace('hi from ${name}');
+    }
+}
+
+class SubHouse extends House<String, Int> {
+    override public function sayYourName(name:String, thing:String) {
+
     }
 }
