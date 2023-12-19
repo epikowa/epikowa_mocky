@@ -107,11 +107,11 @@ class MockyCreator<T> {
     
     @:access(epikowa.mocky.Mocky.createDefinitionFromClass)
     public function createDefinitionFromClass() {
-        return createDefinitionFromClassImpl(classType, params);
+        return createDefinitionFromClassImpl();
     }
     
     @:access(epikowa.mocky.Mocky.counter)
-    function createDefinitionFromClassImpl<T>(classType:haxe.macro.Type.ClassType, ?params: haxe.macro.Expr.ExprOf<Array<T>>):TypeDefinition {
+    function createDefinitionFromClassImpl():TypeDefinition {
         var pack = Lambda.concat(['mockymocks'], classType.module.split('.'));
 
         var fields = new Array<Field>();
@@ -124,7 +124,7 @@ class MockyCreator<T> {
             }
         }
 
-        fields.push(generateConstructor(params));
+        fields.push(generateConstructor());
 
         var typeParams = [];
 
@@ -173,7 +173,7 @@ class MockyCreator<T> {
         };
     }
 
-    function generateConstructor<T>(?params: haxe.macro.Expr.ExprOf<Array<T>>):Field {
+    function generateConstructor():Field {
         return {
             name: 'new',
             pos: Context.currentPos(),
