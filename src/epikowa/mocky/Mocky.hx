@@ -1,5 +1,7 @@
 package epikowa.mocky;
 
+import haxe.macro.ComplexTypeTools;
+import haxe.macro.Expr.ComplexType;
 import haxe.macro.Expr.TypeParamDecl;
 import haxe.macro.Expr.ExprDef;
 import haxe.macro.Expr.TypeParam;
@@ -31,22 +33,85 @@ class Mocky {
     macro public static function mock<T>(toMock:ExprOf<T>, ?params: haxe.macro.Expr.ExprOf<Array<T>>):ExprOf<T> {
         var type = Context.getType(ExprTools.toString(toMock));
         var classType = TypeTools.getClass(type);
-        Context.defineType(createDefinitionFromClass(classType, params));
+        var mockyCreator = new MockyCreator(classType, params);
+        Context.defineType(mockyCreator.createDefinitionFromClass());
         var newExpr:haxe.macro.Expr = {expr: ENew(classTypeToMockTypePath(classType, params), []), pos: haxe.macro.Context.currentPos()};
 
         counter++;
         return newExpr;
     }
 
-    macro static public function printSuperPath<T>(toMock:ExprOf<T>) {
-        var type = Context.getType(ExprTools.toString(toMock));
-        var classType = TypeTools.getClass(type);
+    #if macro
 
-        return {expr: EConst(CIdent("null")), pos: haxe.macro.Context.currentPos()};
+    static function classTypeToMockTypePath<T>(classType:ClassType, params: haxe.macro.Expr.ExprOf<Array<T>>):TypePath {
+        var pack = Lambda.concat(['mockymocks'], classType.pack);
+ 
+        return {
+            pack: pack,
+            sub: '${classType.name}_MockyMock_${counter}',
+            name: classType.module.split('.').pop(),
+            params: params != null ? switch(params.expr) {
+                case EArrayDecl(values):
+                    var params = [];
+
+                    for (value in values) {
+                        var identifier = ExprTools.toString(value);
+                        params.push(TypeParam.TPType(TypeTools.toComplexType(Context.getType(identifier))));
+                    }
+
+                    params;
+                default:
+                    throw 'Incorrect kind of type parameters (classTypeToMockTypePath) : ${params.expr.getName()}';
+            }: null
+        };
+    }
+    #end
+}
+
+#if macro
+@:nullSafety(Strict)
+class MockyCreator<T> {
+    var classType:haxe.macro.Type.ClassType;
+    var params: Null<haxe.macro.Expr.ExprOf<Array<T>>>;
+    var genericsMap:Map<String, ComplexType>;
+
+    public function new(classType:haxe.macro.Type.ClassType, ?params: haxe.macro.Expr.ExprOf<Array<T>>) {
+        genericsMap = new Map();
+        this.classType = classType;
+        this.params = params;
+        generateGenericsMap();
     }
 
-    #if macro
-    static function createDefinitionFromClass<T>(classType:haxe.macro.Type.ClassType, ?params: haxe.macro.Expr.ExprOf<Array<T>>):TypeDefinition {
+    function generateGenericsMap() {
+        var i = 0;
+        var paramsArray = [];
+
+        switch(params.expr) {
+            case EArrayDecl(values):
+
+                for (value in values) {
+                    var identifier = ExprTools.toString(value);
+                    paramsArray.push(TypeTools.toComplexType(Context.getType(identifier)));
+                }
+            default:
+                throw 'Incorrect kind of type parameters : ${params.expr.getName()}';
+        }
+
+        for (param in classType.params) {
+            var genericsName = TypeTools.toString(param.t);
+            var complexType = paramsArray[i];
+            genericsMap.set(genericsName, complexType);
+            i++;
+        }
+    }
+    
+    @:access(epikowa.mocky.Mocky.createDefinitionFromClass)
+    public function createDefinitionFromClass() {
+        return createDefinitionFromClassImpl(classType, params);
+    }
+    
+    @:access(epikowa.mocky.Mocky.counter)
+    function createDefinitionFromClassImpl<T>(classType:haxe.macro.Type.ClassType, ?params: haxe.macro.Expr.ExprOf<Array<T>>):TypeDefinition {
         var pack = Lambda.concat(['mockymocks'], classType.module.split('.'));
 
         var fields = new Array<Field>();
@@ -80,6 +145,7 @@ class Mocky {
 
                 for (value in values) {
                     var identifier = ExprTools.toString(value);
+                    var complexType = TypeTools.toComplexType(Context.getType(identifier));
                     params.push(TypeParam.TPType(TypeTools.toComplexType(Context.getType(identifier))));
                 }
 
@@ -87,37 +153,63 @@ class Mocky {
             default:
                 throw 'Incorrect kind of type parameters : ${params.expr.getName()}';
         }: null;
-
+        
         return {
-            params: classType.params.map(p -> {
-                params: [],
-                name: p.name,
-                constraints: [],
-                meta: null,
-                defaultType: p.defaultType != null ? TypeTools.toComplexType(p.defaultType) : null
-            }),
+            params: classType.params.map(p -> typeParameterToTypeParameterDecl(p)),
             pack: pack,
             fields: fields,
             kind: TypeDefKind.TDClass({name: classType.module.split('.').pop(), pack: classType.pack, sub: classType.name, params: superTypeParams}),
             pos: Context.currentPos(),
-            name: '${classType.name}_MockyMock_${counter}'
+            name: '${classType.name}_MockyMock_${Mocky.counter}'
         }
     }
 
-    static function classTypeToTypePath(classType:haxe.macro.Type.ClassType):TypePath {
+    function generateCallStore():Field {
         return {
-            pack: classType.pack,
-            name: classType.name,
-            sub: classType.module
+            name: 'callStore',
+            pos: Context.currentPos(),
+            access: [APublic],
+            kind: FVar(macro :Array<{name: String, params:Array<Dynamic>}>, macro new Array())
         };
     }
 
-    static function mockField(field:ClassField):Field {
+    function generateConstructor<T>(?params: haxe.macro.Expr.ExprOf<Array<T>>):Field {
+        return {
+            name: 'new',
+            pos: Context.currentPos(),
+            access: [APublic],
+            kind: FFun({args: [], expr: macro ${macro {var a = "test"; return; super(); }}})
+        };
+    }
+
+    function typeParameterToTypeParameterDecl(typeParameter:TypeParameter) {
+        switch (typeParameter.t) {
+            case TInst(t, params):
+                $type(t);
+                $type(params);
+            default:
+                throw 'Unsupported kind of type parameter (${typeParameter.t.getName()})';
+        }
+        return {
+            params: [], //Improve
+            name: typeParameter.name,
+            constraints: [],
+            meta: null,
+            defaultType: typeParameter.defaultType != null ? TypeTools.toComplexType(typeParameter.defaultType) : null
+        };
+    }
+
+    function mockField(field:ClassField):Field {
         var prepareArg = function (args:{name:String, opt:Bool, t:haxe.macro.Type}):FunctionArg {
+            var targetType = if (genericsMap.exists(TypeTools.toString(args.t))) {
+                genericsMap.get(TypeTools.toString(args.t));
+            } else {
+                TypeTools.toComplexType(args.t);
+            };
             return {
                 name: args.name,
-                type: TypeTools.toComplexType(args.t),
-                opt: args.opt
+                type: targetType,
+                opt: args.opt,
             };
         };
 
@@ -131,8 +223,7 @@ class Mocky {
 
                         var paramsNames = args.map((arg) -> arg.name);
                         var pp = new Array<Expr>();
-                        for (param in paramsNames) {
-                            pp.push(macro data.push($i{param}));
+                        for (param in paramsNames) {                            pp.push(macro data.push($i{param}));
                         };
 
                         return {
@@ -162,46 +253,5 @@ class Mocky {
 
         return null;
     }
-
-    static function generateConstructor<T>(?params: haxe.macro.Expr.ExprOf<Array<T>>):Field {
-        return {
-            name: 'new',
-            pos: Context.currentPos(),
-            access: [APublic],
-            kind: FFun({args: [], expr: macro ${macro {var a = "test"; return; super(); }}})
-        };
-    }
-
-    static function generateCallStore():Field {
-        return {
-            name: 'callStore',
-            pos: Context.currentPos(),
-            access: [APublic],
-            kind: FVar(macro :Array<{name: String, params:Array<Dynamic>}>, macro new Array())
-        };
-    }
-
-    static function classTypeToMockTypePath<T>(classType:ClassType, params: haxe.macro.Expr.ExprOf<Array<T>>):TypePath {
-        var pack = Lambda.concat(['mockymocks'], classType.pack);
- 
-        return {
-            pack: pack,
-            sub: '${classType.name}_MockyMock_${counter}',
-            name: classType.module.split('.').pop(),
-            params: params != null ? switch(params.expr) {
-                case EArrayDecl(values):
-                    var params = [];
-
-                    for (value in values) {
-                        var identifier = ExprTools.toString(value);
-                        params.push(TypeParam.TPType(TypeTools.toComplexType(Context.getType(identifier))));
-                    }
-
-                    params;
-                default:
-                    throw 'Incorrect kind of type parameters (classTypeToMockTypePath) : ${params.expr.getName()}';
-            }: null
-        };
-    }
-    #end
 }
+#end

@@ -10,7 +10,7 @@ As Haxe introduces new features, such as null safety, we need mocking libraries 
 ## How to use
 
 >   [!WARNING]  
->   This library is in very very early stage and not ready at all to be used. This is likely to change.
+>   This library is in very early stage and does not currently expose a proper testing interface. What is exposed is subject to (heavy) changes.  
 
 In order to create a mock:
 
@@ -24,6 +24,18 @@ If `MyClass` requires type parameters:
 var mock = Mocky.mock(MyClass, [String, Int]);
 ```
 
+If one of your type parameters expects types parameters itself, you should use a typedef:
+
+```haxe
+typedef ExpectedArrayType = Array<String>;
+class {
+    function test() {
+        var mock = Mocky.mock(MyClass, [ExpectedArrayType]);
+    }
+}
+
+```
+
 Calls made to functions on the mock are stored in a `callStore` array:
 
 ```haxe
@@ -33,6 +45,3 @@ trace(mock.callStore);
 
 >   [!Note]  
 >   More tracking and convenience methods to interpret it will be added in the future.
-
->   [!WARNING]  
->   Mocking a function that uses class type parameters isn't currently implemented, making it practically useless for classes that use type parameters. This is obviously planned.
