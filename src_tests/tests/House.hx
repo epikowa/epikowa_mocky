@@ -8,11 +8,13 @@ class House<S, T> {
     @:nullSafety(Strict)
     public function getArea(name:Null<String>, surface:Int):Dynamic {
         trace('Original call ${name}');
+        throw 'Exception is being returned';
         return name + ' has been returned';
     }
 
     public function sayYourName(name:S, thing:String) {
         trace('hi from ${name}');
+        // throw 'Second exception!';
         return;
     }
 }

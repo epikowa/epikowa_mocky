@@ -11,7 +11,7 @@ class Main {
         mock.sayYourName(testValue, '');
         mock.getArea('original name', 12);
         trace(mock.callStore);
-        new House().sayYourName("bim", "plop");
+        // new House().sayYourName("bim", "plop");
     }
 }
 
