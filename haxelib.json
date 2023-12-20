@@ -1,0 +1,13 @@
+{
+    "name": "epikowa_mocky",
+    "url" : "https://github.com/epikowa/epikowa_mocky/",
+    "license": "MIT",
+    "tags": ["mocky", "mocking", "testing"],
+    "description": "Provides ways to spy and mock classes",
+    "version": "0.5.0",
+    "classPath": "src/",
+    "releasenote": "",
+    "contributors": ["benjamin.dasnois"],
+    "dependencies": {
+    }
+  }
