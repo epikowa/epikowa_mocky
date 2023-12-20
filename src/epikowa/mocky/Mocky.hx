@@ -233,7 +233,6 @@ class MockyCreator<T> {
                         }
 
                         var fieldName = field.name;
-                        trace(ret);
 
                         var isVoidReturn = switch (ret) {
                             case TAbstract(t, params):
