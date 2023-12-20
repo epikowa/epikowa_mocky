@@ -43,5 +43,16 @@ var mock = Mocky.mock(MyClass);
 trace(mock.callStore);
 ```
 
+The type of callStore is as follows:
+
+```haxe
+    Array<{
+        name: String, //function's name
+        params: Array<Dynamic>, //passed parameters
+        returnedValue: Dynamic,
+        thrownException: Dynamic
+    }>
+```
+
 >   [!Note]  
 >   More tracking and convenience methods to interpret it will be added in the future.
