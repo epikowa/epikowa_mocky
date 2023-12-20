@@ -9,6 +9,7 @@ class Main {
         var testValue = new TestGenMock();
         var mock = Mocky.mock(House, [TestGenMock, Int]);
         mock.sayYourName(testValue, '');
+        mock.getArea('original name', 12);
         trace(mock.callStore);
         new House().sayYourName("bim", "plop");
     }
