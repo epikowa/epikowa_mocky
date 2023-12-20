@@ -12,6 +12,11 @@ As Haxe introduces new features, such as null safety, we need mocking libraries 
 >   [!WARNING]  
 >   This library is in very early stage and does not currently expose a proper testing interface. What is exposed is subject to (heavy) changes.  
 
+>   [!Note]  
+>   At the moment, only spying is supported.  
+>   That means the "mocked" function will in fact always be called. 
+>   Actual mocking will be available soon.
+
 In order to create a mock:
 
 ```haxe
@@ -41,6 +46,17 @@ Calls made to functions on the mock are stored in a `callStore` array:
 ```haxe
 var mock = Mocky.mock(MyClass);
 trace(mock.callStore);
+```
+
+The type of callStore is as follows:
+
+```haxe
+    Array<{
+        name: String, //function's name
+        params: Array<Dynamic>, //passed parameters
+        returnedValue: Dynamic,
+        thrownException: Dynamic
+    }>
 ```
 
 >   [!Note]  
