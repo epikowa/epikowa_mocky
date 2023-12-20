@@ -169,7 +169,7 @@ class MockyCreator<T> {
             name: 'callStore',
             pos: Context.currentPos(),
             access: [APublic],
-            kind: FVar(macro :Array<{name: String, params:Array<Dynamic>, returnedValue: Dynamic}>, macro new Array())
+            kind: FVar(macro :Array<{name: String, params:Array<Dynamic>, returnedValue: Dynamic, thrownException: Dynamic}>, macro new Array())
         };
     }
 
@@ -250,8 +250,13 @@ class MockyCreator<T> {
                                     var data = new Array<Dynamic>();
                                     $b{pp};
                                     var returnedValue:Dynamic = null;
-                                    returnedValue = super.$fieldName($a{toBeArgs});
-                                    callStore.push({name: $v{field.name}, params: data, returnedValue: returnedValue});
+                                    var exception:Dynamic = null;
+                                    try {
+                                        returnedValue = super.$fieldName($a{toBeArgs});
+                                    } catch(e) {
+                                        exception = e;
+                                    }
+                                    callStore.push({name: $v{field.name}, params: data, returnedValue: returnedValue, thrownException: exception});
                                     return null; 
                                 }
                            }
@@ -261,8 +266,13 @@ class MockyCreator<T> {
                                     trace('Mocked function');
                                     var data = new Array<Dynamic>();
                                     $b{pp};
-                                    super.$fieldName($a{toBeArgs});
-                                    callStore.push({name: $v{field.name}, params: data, returnedValue: null});
+                                    var exception:Dynamic = null;
+                                    try {
+                                        super.$fieldName($a{toBeArgs});
+                                    } catch (e) {
+                                        exception = e;
+                                    }
+                                    callStore.push({name: $v{field.name}, params: data, returnedValue: null, thrownException: exception});
                                     return; 
                                 }
                             }
