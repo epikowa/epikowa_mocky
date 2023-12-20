@@ -6,17 +6,13 @@ class House<S, T> {
     public function new() {}
 
     @:nullSafety(Strict)
-    public function getArea(name:Null<String>, surface:Int) {
+    public function getArea(name:Null<String>, surface:Int):Dynamic {
         trace('Original call ${name}');
+        return name + ' has been returned';
     }
 
     public function sayYourName(name:S, thing:String) {
         trace('hi from ${name}');
-    }
-}
-
-class SubHouse extends House<String, Int> {
-    override public function sayYourName(name:String, thing:String) {
-
+        return;
     }
 }

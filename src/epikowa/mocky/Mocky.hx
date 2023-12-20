@@ -169,7 +169,7 @@ class MockyCreator<T> {
             name: 'callStore',
             pos: Context.currentPos(),
             access: [APublic],
-            kind: FVar(macro :Array<{name: String, params:Array<Dynamic>}>, macro new Array())
+            kind: FVar(macro :Array<{name: String, params:Array<Dynamic>, returnedValue: Dynamic}>, macro new Array())
         };
     }
 
@@ -223,9 +223,51 @@ class MockyCreator<T> {
 
                         var paramsNames = args.map((arg) -> arg.name);
                         var pp = new Array<Expr>();
-                        for (param in paramsNames) {                            pp.push(macro data.push($i{param}));
+                        var toBeArgs = new Array<Expr>();
+                        for (param in paramsNames) {                            
+                            pp.push(macro data.push($i{param}));
+                            toBeArgs.push(macro $i{param});
                         };
 
+                        for (param in paramsNames) {
+                        }
+
+                        var fieldName = field.name;
+                        trace(ret);
+
+                        var isVoidReturn = switch (ret) {
+                            case TAbstract(t, params):
+                                t.toString() == 'Void';
+                                true;
+                            default:
+                                false;
+                        }
+
+                        var expr:Expr;
+                        if (!isVoidReturn) {
+                            expr = macro { 
+                                {
+                                    trace('Mocked function');
+                                    var data = new Array<Dynamic>();
+                                    $b{pp};
+                                    var returnedValue:Dynamic = null;
+                                    returnedValue = super.$fieldName($a{toBeArgs});
+                                    callStore.push({name: $v{field.name}, params: data, returnedValue: returnedValue});
+                                    return null; 
+                                }
+                           }
+                        } else {
+                            expr = macro {
+                                {
+                                    trace('Mocked function');
+                                    var data = new Array<Dynamic>();
+                                    $b{pp};
+                                    super.$fieldName($a{toBeArgs});
+                                    callStore.push({name: $v{field.name}, params: data, returnedValue: null});
+                                    return; 
+                                }
+                            }
+                        }
                         return {
                             access: [AOverride],
                             name: field.name,
@@ -234,15 +276,8 @@ class MockyCreator<T> {
                             pos: Context.currentPos(),
                             kind:  FFun({
                                 args: preparedArgs,
-                                expr: macro { 
-                                    {
-                                        trace('Mocked function');
-                                        var data = new Array<Dynamic>();
-                                        $b{pp};
-                                        callStore.push({name: $v{field.name}, params: data});
-                                        return; 
-                                    }
-                                },
+                                expr: expr,
+                                ret: TypeTools.toComplexType(ret),
                                 params: []
                             })
                         };
