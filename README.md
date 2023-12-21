@@ -17,16 +17,17 @@ As Haxe introduces new features, such as null safety, we need mocking libraries 
 >   That means the "mocked" function will in fact always be called. 
 >   Actual mocking will be available soon.
 
-In order to create a mock:
+### Creating a spy
+In order to create a spy:
 
 ```haxe
-var mock = Mocky.mock(MyClass);
+var mock = Mocky.mock(MyClass, false);
 ```
 
 If `MyClass` requires type parameters:
 
 ```haxe
-var mock = Mocky.mock(MyClass, [String, Int]);
+var mock = Mocky.mock(MyClass, [String, Int], false);
 ```
 
 If one of your type parameters expects types parameters itself, you should use a typedef:
@@ -38,9 +39,44 @@ class {
         var mock = Mocky.mock(MyClass, [ExpectedArrayType]);
     }
 }
-
 ```
 
+### Creating a mock
+In order to create a mock:
+
+```haxe
+var mock = Mocky.mock(MyClass, true);
+```
+
+If `MyClass` requires type parameters:
+
+```haxe
+var mock = Mocky.mock(MyClass, [String, Int], true);
+```
+
+If one of your type parameters expects types parameters itself, you should use a typedef:
+
+```haxe
+typedef ExpectedArrayType = Array<String>;
+class {
+    function test() {
+        var mock = Mocky.mock(MyClass, [ExpectedArrayType]);
+    }
+}
+```
+
+You then have to add values that are going to be returned when particular `Matcher` (see `epikowa.mocky.Matcher`) return `true` for given arguments:
+
+```haxe
+mock.__mockCall(
+    'sayYourName', //mocked function's name
+    [new AnyString(),
+    new AnyString()],
+    "this is a mocked return value"
+);
+```
+
+### Checking calls  
 Calls made to functions on the mock are stored in a `callStore` array:
 
 ```haxe
