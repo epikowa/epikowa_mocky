@@ -30,7 +30,7 @@ class Mocky {
         return null;
     }
 
-    macro public static function mock<T>(toMock:ExprOf<T>, ?params: haxe.macro.Expr.ExprOf<Array<T>>, isMock:Bool):ExprOf<T> {
+    macro public static function mock<T>(toMock:ExprOf<T>, ?params: haxe.macro.Expr.ExprOf<Array<T>>, ?isMock:Bool):ExprOf<T> {
         var type = Context.getType(ExprTools.toString(toMock));
         var classType = TypeTools.getClass(type);
         var mockyCreator = new MockyCreator(classType, params, isMock);
@@ -327,9 +327,19 @@ class MockyCreator<T> {
                                         return true;
                                     });
 
-                                    if (applicableMocks.length <= 0)
-                                        throw 'No applicable mocks';
-                                    return applicableMocks[0].returnValue;
+                                    var data = new Array<Dynamic>();
+                                    $b{pp};
+
+                                    if (applicableMocks.length <= 0) {
+                                        var exception = 'No applicable mocks';
+                                        callStore.push({name: $v{field.name}, params: data, returnedValue: null, thrownException: exception});
+                                        throw exception;
+                                    }
+                                    var returnedValue = applicableMocks[0].returnValue;
+
+                                    callStore.push({name: $v{field.name}, params: data, returnedValue: returnedValue, thrownException: null});
+
+                                    return returnedValue;
                                 }
                             }
                         } else {
@@ -367,8 +377,16 @@ class MockyCreator<T> {
                                         return true;
                                     });
 
-                                    if (applicableMocks.length <= 0)
-                                        throw 'No applicable mocks';
+                                    var data = new Array<Dynamic>();
+                                    $b{pp};
+
+                                    if (applicableMocks.length <= 0) {
+                                        var exception = 'No applicable mocks';
+                                        callStore.push({name: $v{field.name}, params: data, returnedValue: null, thrownException: exception});
+                                        throw exception;
+                                    }
+
+                                    callStore.push({name: $v{field.name}, params: data, returnedValue: null, thrownException: null});
                                 }
                             }
                         }

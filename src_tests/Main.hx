@@ -16,10 +16,16 @@ class Main {
             "this is a mocked return value"
         );
         trace(mock.__mocksValues);
-        mock.sayYourName("", "");
+        try {
+            mock.sayYourName("", "");
+        } catch (e) {}
         trace('Calling mocked function');
         // mock.sayYourName(testValue, '');
-        // mock.getArea('original name', 12);
+        try {
+            mock.getArea('original name', 12);
+        } catch(e) {
+            
+        }
         trace(mock.callStore);
         // new House().sayYourName("bim", "plop");
     }
