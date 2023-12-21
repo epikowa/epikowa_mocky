@@ -30,10 +30,10 @@ class Mocky {
         return null;
     }
 
-    macro public static function mock<T>(toMock:ExprOf<T>, ?params: haxe.macro.Expr.ExprOf<Array<T>>):ExprOf<T> {
+    macro public static function mock<T>(toMock:ExprOf<T>, ?params: haxe.macro.Expr.ExprOf<Array<T>>, ?isMock:Bool):ExprOf<T> {
         var type = Context.getType(ExprTools.toString(toMock));
         var classType = TypeTools.getClass(type);
-        var mockyCreator = new MockyCreator(classType, params);
+        var mockyCreator = new MockyCreator(classType, params, isMock);
         Context.defineType(mockyCreator.createDefinitionFromClass());
         var newExpr:haxe.macro.Expr = {expr: ENew(classTypeToMockTypePath(classType, params), []), pos: haxe.macro.Context.currentPos()};
 
@@ -74,8 +74,10 @@ class MockyCreator<T> {
     var classType:haxe.macro.Type.ClassType;
     var params: Null<haxe.macro.Expr.ExprOf<Array<T>>>;
     var genericsMap:Map<String, ComplexType>;
+    var isMock:Bool = false;
 
-    public function new(classType:haxe.macro.Type.ClassType, ?params: haxe.macro.Expr.ExprOf<Array<T>>) {
+    public function new(classType:haxe.macro.Type.ClassType, ?params: haxe.macro.Expr.ExprOf<Array<T>>, ?isMock:Bool = false) {
+        this.isMock = isMock;
         genericsMap = new Map();
         this.classType = classType;
         this.params = params;
@@ -116,6 +118,8 @@ class MockyCreator<T> {
 
         var fields = new Array<Field>();
         fields.push(generateCallStore());
+        fields.push(generateMockStore());
+        fields.push(generateMockCall());
 
         for (f in classType.fields.get()) {
             if (f.name != 'new') {
@@ -170,6 +174,50 @@ class MockyCreator<T> {
             pos: Context.currentPos(),
             access: [APublic],
             kind: FVar(macro :Array<{name: String, params:Array<Dynamic>, returnedValue: Dynamic, thrownException: Dynamic}>, macro new Array())
+        };
+    }
+
+    function generateMockStore():Field {
+        return {
+            name: '__mocksValues',
+            pos: Context.currentPos(),
+            access: [APublic],
+            kind: FVar(macro :Array<{
+                callName:String,
+                paramsMatchers:Array<epikowa.mocky.Matcher<Dynamic>>,
+                returnValue:Dynamic
+            }>, macro new Array())
+        };
+    }
+
+    function generateMockCall():Field {
+        return {
+            name: '__mockCall',
+            pos: Context.currentPos(),
+            access: [APublic],
+            kind: FFun({
+                args: [
+                    {
+                        name: 'callName',
+                        type: macro :String,
+                        opt: false
+                    }, {
+                        name: 'paramsMatchers',
+                        type: macro :Array<epikowa.mocky.Matcher<Dynamic>>,
+                        opt: false
+                    }, {
+                        name: 'returnValue',
+                        type: macro :Dynamic,
+                        opt: false
+                    }],
+                expr: macro ${macro {
+                    __mocksValues.push({
+                        callName:callName,
+                        paramsMatchers:paramsMatchers,
+                        returnValue:returnValue
+                    });
+                }}
+            })
         };
     }
 
@@ -244,36 +292,101 @@ class MockyCreator<T> {
 
                         var expr:Expr;
                         if (!isVoidReturn) {
-                            expr = macro { 
-                                {
-                                    trace('Mocked function');
+                            if (!isMock) {
+                                expr = macro { 
+                                    {
+                                        trace('Mocked function');
+                                        var data = new Array<Dynamic>();
+                                        $b{pp};
+                                        var returnedValue:Dynamic = null;
+                                        var exception:Dynamic = null;
+                                        try {
+                                            returnedValue = super.$fieldName($a{toBeArgs});
+                                        } catch(e) {
+                                            exception = e;
+                                        }
+                                        callStore.push({name: $v{field.name}, params: data, returnedValue: returnedValue, thrownException: exception});
+                                        return null; 
+                                    }
+                               }
+                            } else {
+                                var preparedTests = [
+                                    for(p in 0...paramsNames.length) {
+                                        macro 
+                                            if (mock.paramsMatchers[$v{p}].run($i{paramsNames[p]}) == false)
+                                                return false;
+                                    }
+                                ];
+
+                                expr = macro {
+                                    var applicableMocks = __mocksValues.filter((mock) -> {
+                                        if (mock.callName != $v{fieldName}) return false;
+
+                                        $b{preparedTests}
+
+                                        return true;
+                                    });
+
                                     var data = new Array<Dynamic>();
                                     $b{pp};
-                                    var returnedValue:Dynamic = null;
-                                    var exception:Dynamic = null;
-                                    try {
-                                        returnedValue = super.$fieldName($a{toBeArgs});
-                                    } catch(e) {
-                                        exception = e;
+
+                                    if (applicableMocks.length <= 0) {
+                                        var exception = 'No applicable mocks';
+                                        callStore.push({name: $v{field.name}, params: data, returnedValue: null, thrownException: exception});
+                                        throw exception;
                                     }
-                                    callStore.push({name: $v{field.name}, params: data, returnedValue: returnedValue, thrownException: exception});
-                                    return null; 
+                                    var returnedValue = applicableMocks[0].returnValue;
+
+                                    callStore.push({name: $v{field.name}, params: data, returnedValue: returnedValue, thrownException: null});
+
+                                    return returnedValue;
                                 }
-                           }
+                            }
                         } else {
-                            expr = macro {
-                                {
-                                    trace('Mocked function');
+                            if (!isMock) {
+                                expr = macro {
+                                    {
+                                        trace('Mocked function');
+                                        var data = new Array<Dynamic>();
+                                        $b{pp};
+                                        var exception:Dynamic = null;
+                                        try {
+                                            super.$fieldName($a{toBeArgs});
+                                        } catch (e) {
+                                            exception = e;
+                                        }
+                                        callStore.push({name: $v{field.name}, params: data, returnedValue: null, thrownException: exception});
+                                        return; 
+                                    }
+                                }
+                            } else {
+                                var preparedTests = [
+                                    for(p in 0...paramsNames.length) {
+                                        macro 
+                                            if (mock.paramsMatchers[$v{p}].run($i{paramsNames[p]}) == false)
+                                                return false;
+                                    }
+                                ];
+
+                                expr = macro {
+                                    var applicableMocks = __mocksValues.filter((mock) -> {
+                                        if (mock.callName != $v{fieldName}) return false;
+
+                                        $b{preparedTests}
+
+                                        return true;
+                                    });
+
                                     var data = new Array<Dynamic>();
                                     $b{pp};
-                                    var exception:Dynamic = null;
-                                    try {
-                                        super.$fieldName($a{toBeArgs});
-                                    } catch (e) {
-                                        exception = e;
+
+                                    if (applicableMocks.length <= 0) {
+                                        var exception = 'No applicable mocks';
+                                        callStore.push({name: $v{field.name}, params: data, returnedValue: null, thrownException: exception});
+                                        throw exception;
                                     }
-                                    callStore.push({name: $v{field.name}, params: data, returnedValue: null, thrownException: exception});
-                                    return; 
+
+                                    callStore.push({name: $v{field.name}, params: data, returnedValue: null, thrownException: null});
                                 }
                             }
                         }

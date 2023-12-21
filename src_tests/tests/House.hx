@@ -15,6 +15,5 @@ class House<S, T> {
     public function sayYourName(name:S, thing:String) {
         trace('hi from ${name}');
         // throw 'Second exception!';
-        return;
     }
 }
